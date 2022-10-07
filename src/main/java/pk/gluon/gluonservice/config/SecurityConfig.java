@@ -1,5 +1,7 @@
 package pk.gluon.gluonservice.config;
 
+import java.util.Arrays;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,6 +15,9 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import pk.gluon.gluonservice.filter.CustomAuthenticationFilter;
 import pk.gluon.gluonservice.filter.CustomAuthorizationFilter;
@@ -37,14 +42,28 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 		CustomAuthenticationFilter customAuthenticationFilter = new CustomAuthenticationFilter(
 				authenticationManagerBean());
 		customAuthenticationFilter.setFilterProcessesUrl("/api/login");
+		http.cors(cors -> {
+			CorsConfigurationSource cs = resources -> {
+				CorsConfiguration corsConfiguration = new CorsConfiguration();
+				corsConfiguration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
+				corsConfiguration.setAllowedMethods(Arrays.asList("POST", "GET", "PUT", "DELETE", "OPTIONS"));
+				corsConfiguration.setAllowedHeaders(
+						Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept", "X-XSRF-TOKEN"));
+				corsConfiguration.setAllowCredentials(true);
+				return corsConfiguration;
+			};
+			cors.configurationSource(cs);
+		});
 		http.csrf().disable();
 		http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-		http.authorizeRequests().antMatchers("/api/login/**", "/api/token/refresh/**").permitAll();
+		http.authorizeRequests().antMatchers("/api/login/**", "/api/login/cookie/**", "/api/token/refresh/**")
+				.permitAll();
 		http.authorizeRequests().antMatchers(HttpMethod.GET, "/api/users/**").hasAnyAuthority("ROLE_USER");
 		http.authorizeRequests().antMatchers(HttpMethod.POST, "/api/user/save/**").hasAnyAuthority("ROLE_ADMIN");
 		http.authorizeRequests().anyRequest().authenticated();
 		http.addFilter(customAuthenticationFilter);
 		http.addFilterBefore(new CustomAuthorizationFilter(), UsernamePasswordAuthenticationFilter.class);
+		// http.addFilterBefore(new CorsFilter(), CustomAuthorizationFilter.class);
 	}
 
 	@Bean
